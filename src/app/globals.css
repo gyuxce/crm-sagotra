@@ -54,6 +54,10 @@ button { cursor: pointer; }
 .main-content { width: min(100%, 1320px); margin: 0 auto; padding: 32px 36px 46px; }
 .page-stack { display: grid; gap: 20px; }
 .page-stack > * { min-width: 0; }
+.loading-skeleton { border-radius: 14px; background: linear-gradient(90deg, #f0eef4 25%, #e6e3ec 37%, #f0eef4 63%); background-size: 400% 100%; animation: loading-shimmer 1.4s ease infinite; }
+.loading-skeleton-heading { height: 64px; }
+.loading-skeleton-block { height: 160px; }
+@keyframes loading-shimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
 
 .welcome-panel { position: relative; overflow: hidden; min-height: 182px; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 31px 34px; border-radius: 18px; color: #fff; background: linear-gradient(110deg, #39305f 0%, #574687 56%, #74619f 100%); box-shadow: 0 15px 35px rgba(58,47,96,.16); }
 .welcome-panel > div:first-child, .welcome-panel .button { position: relative; z-index: 1; }
