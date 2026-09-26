@@ -1,26 +1,38 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { startTransition, useActionState, useState } from "react";
 import type { ActivityEvent, Booking, Lead, StaffRole } from "@/lib/domain";
 import { formatDate, formatDateTime, formatRupiah, getLeadStatusLabel } from "@/lib/domain";
 import { deleteLeadAction, saveLeadContactAction, type FormState } from "@/app/actions";
+import { ConfirmDialog } from "./ConfirmDialog";
 
 const initialFormState: FormState = { status: "idle", message: "" };
 
 function DeleteLeadButton({ leadId, leadName }: { leadId: string; leadName: string }) {
+  const [open, setOpen] = useState(false);
   const [state, action, pending] = useActionState(deleteLeadAction, initialFormState);
+
+  function confirmDelete() {
+    const formData = new FormData();
+    formData.set("leadId", leadId);
+    startTransition(() => action(formData));
+    setOpen(false);
+  }
+
   return (
-    <form
-      action={action}
-      onSubmit={(event) => {
-        if (!confirm(`Hapus lead "${leadName}"? Tindakan ini tidak bisa dibatalkan.`)) event.preventDefault();
-      }}
-    >
-      <input type="hidden" name="leadId" value={leadId} />
-      <button className="button button-danger button-small" type="submit" disabled={pending}>{pending ? "Menghapus…" : "Hapus lead"}</button>
+    <>
+      <button className="button button-danger button-small" type="button" onClick={() => setOpen(true)} disabled={pending}>{pending ? "Menghapus…" : "Hapus lead"}</button>
       {state.message && <p className="form-message is-error" role="alert">{state.message}</p>}
-    </form>
+      <ConfirmDialog
+        open={open}
+        title="Hapus lead?"
+        message={`Hapus lead "${leadName}"? Riwayat aktivitasnya ikut terhapus dan tindakan ini tidak bisa dibatalkan.`}
+        pending={pending}
+        onConfirm={confirmDelete}
+        onCancel={() => setOpen(false)}
+      />
+    </>
   );
 }
 

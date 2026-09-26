@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { deleteBookingAction, updatePaymentStatusAction } from "@/app/actions";
 import { formatDate, formatDateTime, formatRupiah, type Booking, type StaffRole } from "@/lib/domain";
+import { ConfirmDialog } from "./ConfirmDialog";
 
 interface BookingRow extends Booking {
   leadName?: string;
@@ -16,6 +17,7 @@ export function BookingTable({ initialBookings, role }: { initialBookings: Booki
   const [bookings, setBookings] = useState(initialBookings);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+  const [confirmTarget, setConfirmTarget] = useState<{ id: string; leadName: string } | null>(null);
 
   useEffect(() => setBookings(initialBookings), [initialBookings]);
 
@@ -44,9 +46,15 @@ export function BookingTable({ initialBookings, role }: { initialBookings: Booki
     }
   }
 
-  async function deleteBooking(id: string, leadName: string) {
+  function deleteBooking(id: string, leadName: string) {
     if (pendingId) return;
-    if (!confirm(`Hapus booking untuk "${leadName}"? Tindakan ini tidak bisa dibatalkan.`)) return;
+    setConfirmTarget({ id, leadName });
+  }
+
+  async function confirmDeleteBooking() {
+    if (!confirmTarget) return;
+    const { id } = confirmTarget;
+    setConfirmTarget(null);
     const previous = bookings;
     setPendingId(id);
     setMessage("");
@@ -87,10 +95,18 @@ export function BookingTable({ initialBookings, role }: { initialBookings: Booki
             <td><div className="payment-control"><span className={`status-badge status-${booking.paymentStatus}`}>{booking.paymentStatus === "paid" ? "Lunas" : "Belum dibayar"}</span><select aria-label={`Ubah pembayaran untuk ${booking.leadName || "booking"}`} value={booking.paymentStatus} disabled={pendingId === booking._id || pendingId !== null} onChange={(event) => void changePayment(booking._id, event.target.value as "unpaid" | "paid")}><option value="unpaid">Belum dibayar</option><option value="paid">Lunas</option></select></div></td>
             {role === "owner_admin" ? <><td className="booking-table-finance">{formatRupiah(booking.costPrice ?? 0)}</td><td className="booking-table-finance">{formatRupiah(booking.salePrice ?? 0)}</td><td className="booking-table-finance">{formatRupiah(margin)}<small>{marginPercent.toFixed(1)}% dari harga jual</small></td></> : <td>{formatRupiah(booking.salePrice ?? 0)}</td>}
             <td>{formatDateTime(booking.createdAt)}</td>
-            <td><button className="button button-danger button-small" type="button" disabled={pendingId !== null} onClick={() => void deleteBooking(booking._id, booking.leadName || "booking ini")}>Hapus</button></td>
+            <td><button className="button button-danger button-small" type="button" disabled={pendingId !== null} onClick={() => deleteBooking(booking._id, booking.leadName || "booking ini")}>Hapus</button></td>
           </tr>;
         })}</tbody>
       </table></div>
+      <ConfirmDialog
+        open={confirmTarget !== null}
+        title="Hapus booking?"
+        message={`Hapus booking untuk "${confirmTarget?.leadName}"? Tindakan ini tidak bisa dibatalkan.`}
+        pending={pendingId !== null}
+        onConfirm={confirmDeleteBooking}
+        onCancel={() => setConfirmTarget(null)}
+      />
     </>
   );
 }

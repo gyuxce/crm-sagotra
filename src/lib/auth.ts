@@ -2,6 +2,7 @@ import "server-only";
 
 import type { User } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 import type { Staff, StaffRole } from "./domain";
 import { createSupabaseAdminClient, createSupabaseServerClient, isSupabaseConfigured } from "./supabase/server";
 
@@ -26,24 +27,28 @@ async function staffForUser(user: User): Promise<Staff | null> {
   };
 }
 
-export async function getCurrentStaff(): Promise<Staff | null> {
-  if (!isSupabaseConfigured) return null;
+// The ops layout and every page under it each need the current staff member.
+// Without this, that's a Supabase Auth call plus a crm_staff_profiles query
+// repeated twice per request. React's cache() dedupes it to once per request.
+const loadAuthState = cache(async (): Promise<{ user: User | null; staff: Staff | null }> => {
+  if (!isSupabaseConfigured) return { user: null, staff: null };
   const supabase = await createSupabaseServerClient();
-  if (!supabase) return null;
+  if (!supabase) return { user: null, staff: null };
 
   const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) return null;
-  return staffForUser(user);
+  if (error || !user) return { user: null, staff: null };
+  return { user, staff: await staffForUser(user) };
+});
+
+export async function getCurrentStaff(): Promise<Staff | null> {
+  const { staff } = await loadAuthState();
+  return staff;
 }
 
 export async function requireStaff(): Promise<Staff> {
   if (!isSupabaseConfigured) redirect("/sign-in?setup=supabase");
-  const supabase = await createSupabaseServerClient();
-  if (!supabase) redirect("/sign-in?setup=supabase");
-
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) redirect("/sign-in");
-  const staff = await staffForUser(user);
+  const { user, staff } = await loadAuthState();
+  if (!user) redirect("/sign-in");
   if (!staff) redirect("/access-denied");
   return staff;
 }

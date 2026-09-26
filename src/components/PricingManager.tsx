@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { startTransition, useActionState, useState } from "react";
 import { createExperienceAction, deleteExperienceAction, savePricingAction, updateExperienceAction, type FormState } from "@/app/actions";
 import { calculatePricing, EXPERIENCE_CATEGORIES, formatRupiah, getExperienceCategoryLabel, type ExperienceOption, type ExperiencePricing } from "@/lib/domain";
+import { ConfirmDialog } from "./ConfirmDialog";
 
 const initialFormState: FormState = { status: "idle", message: "" };
 
@@ -59,16 +60,29 @@ export function MissingExperiences({ items }: { items: { slug: string; title: st
 }
 
 function DeleteExperienceButton({ experienceId, title }: { experienceId: string; title: string }) {
+  const [open, setOpen] = useState(false);
   const [state, action, pending] = useActionState(deleteExperienceAction, initialFormState);
+
+  function confirmDelete() {
+    const formData = new FormData();
+    formData.set("experienceId", experienceId);
+    startTransition(() => action(formData));
+    setOpen(false);
+  }
+
   return (
-    <form
-      action={action}
-      onSubmit={(event) => { if (!confirm(`Hapus pengalaman "${title}" dari CRM? Harga yang tersimpan ikut terhapus.`)) event.preventDefault(); }}
-    >
-      <input type="hidden" name="experienceId" value={experienceId} />
-      <button className="button-link is-danger" type="submit" disabled={pending}>{pending ? "Menghapus…" : "Hapus"}</button>
+    <>
+      <button className="button-link is-danger" type="button" onClick={() => setOpen(true)} disabled={pending}>{pending ? "Menghapus…" : "Hapus"}</button>
       {state.message && <p className="form-message is-error" role="alert">{state.message}</p>}
-    </form>
+      <ConfirmDialog
+        open={open}
+        title="Hapus pengalaman?"
+        message={`Hapus pengalaman "${title}" dari CRM? Harga yang tersimpan ikut terhapus.`}
+        pending={pending}
+        onConfirm={confirmDelete}
+        onCancel={() => setOpen(false)}
+      />
+    </>
   );
 }
 

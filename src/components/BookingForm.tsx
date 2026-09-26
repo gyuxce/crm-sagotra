@@ -3,6 +3,7 @@
 import { startTransition, useActionState, useMemo, useState } from "react";
 import { createPartnerAction, deletePartnerAction, updatePartnerAction, createBookingAction, type FormState } from "@/app/actions";
 import { formatRupiah, type BookingPriceDefault, type ExperienceOption, type Lead, type PartnerOption, type StaffRole } from "@/lib/domain";
+import { ConfirmDialog } from "./ConfirmDialog";
 
 const initialFormState: FormState = { status: "idle", message: "" };
 
@@ -11,6 +12,7 @@ const initialFormState: FormState = { status: "idle", message: "" };
 // manually via startTransition instead of relying on form submission.
 function PartnerRow({ partner }: { partner: PartnerOption }) {
   const [name, setName] = useState(partner.name);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [renameState, renameAction, renamePending] = useActionState(updatePartnerAction, initialFormState);
   const [deleteState, deleteAction, deletePending] = useActionState(deletePartnerAction, initialFormState);
   const pending = renamePending || deletePending;
@@ -23,11 +25,11 @@ function PartnerRow({ partner }: { partner: PartnerOption }) {
     startTransition(() => renameAction(formData));
   }
 
-  function removePartner() {
-    if (!confirm(`Hapus partner "${partner.name}"?`)) return;
+  function confirmDelete() {
     const formData = new FormData();
     formData.set("partnerId", partner._id);
     startTransition(() => deleteAction(formData));
+    setConfirmingDelete(false);
   }
 
   return (
@@ -39,9 +41,17 @@ function PartnerRow({ partner }: { partner: PartnerOption }) {
         onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); saveName(); } }}
       />
       <button className="button button-secondary button-small" type="button" onClick={saveName} disabled={pending || name === partner.name}>{renamePending ? "Menyimpan…" : "Simpan"}</button>
-      <button className="button-link is-danger" type="button" onClick={removePartner} disabled={pending}>{deletePending ? "Menghapus…" : "Hapus"}</button>
+      <button className="button-link is-danger" type="button" onClick={() => setConfirmingDelete(true)} disabled={pending}>{deletePending ? "Menghapus…" : "Hapus"}</button>
       {renameState.message && <p className={`form-message ${renameState.status === "error" ? "is-error" : "is-success"}`} role="status">{renameState.message}</p>}
       {deleteState.message && <p className="form-message is-error" role="alert">{deleteState.message}</p>}
+      <ConfirmDialog
+        open={confirmingDelete}
+        title="Hapus partner?"
+        message={`Hapus partner "${partner.name}"?`}
+        pending={deletePending}
+        onConfirm={confirmDelete}
+        onCancel={() => setConfirmingDelete(false)}
+      />
     </div>
   );
 }
